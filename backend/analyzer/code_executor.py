@@ -11,6 +11,7 @@ import signal
 import subprocess
 import threading
 import time
+from datetime import datetime, timezone
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -98,6 +99,7 @@ def execute_code_safely(
     stop_event = threading.Event()
 
     start = time.monotonic()
+    sampling_started_at = datetime.now(timezone.utc).isoformat()
     proc = subprocess.Popen(
         [python, abs_script],
         stdout=subprocess.PIPE,
@@ -161,6 +163,7 @@ def execute_code_safely(
         {"time_sec": round(s["time_sec"] - t0, 3), "fd_count": s["fd_count"]}
         for s in fd_samples
     ]
+    snapshot_taken_at = datetime.now(timezone.utc).isoformat()
 
     return {
         "pid": pid,
@@ -173,6 +176,8 @@ def execute_code_safely(
         "fd_snapshot": last_fd_snapshot.get("entries", []),
         "timeout_sec": timeout_sec,
         "fd_limit": fd_limit,
+        "sampling_started_at": sampling_started_at,
+        "snapshot_taken_at": snapshot_taken_at,
     }
 
 
@@ -227,6 +232,7 @@ def execute_binary_safely(
     stop_event = threading.Event()
 
     start = time.monotonic()
+    sampling_started_at = datetime.now(timezone.utc).isoformat()
     proc = subprocess.Popen(
         [abs_binary],
         stdout=subprocess.PIPE,
@@ -290,6 +296,7 @@ def execute_binary_safely(
         {"time_sec": round(s["time_sec"] - t0, 3), "fd_count": s["fd_count"]}
         for s in fd_samples
     ]
+    snapshot_taken_at = datetime.now(timezone.utc).isoformat()
 
     return {
         "pid": pid,
@@ -302,4 +309,6 @@ def execute_binary_safely(
         "fd_snapshot": last_fd_snapshot.get("entries", []),
         "timeout_sec": timeout_sec,
         "fd_limit": fd_limit,
+        "sampling_started_at": sampling_started_at,
+        "snapshot_taken_at": snapshot_taken_at,
     }

@@ -19,7 +19,12 @@ function AISummary({ text }) {
   let current = { type: 'p', content: [] };
 
   for (const line of lines) {
-    if (line.startsWith('## ')) {
+    if (line.startsWith('### ')) {
+      if (current.content.length) blocks.push(current);
+      current = { type: 'h2', content: [line.slice(4)] };
+      blocks.push(current);
+      current = { type: 'p', content: [] };
+    } else if (line.startsWith('## ')) {
       if (current.content.length) blocks.push(current);
       current = { type: 'h2', content: [line.slice(3)] };
       blocks.push(current);
@@ -35,7 +40,7 @@ function AISummary({ text }) {
 
   return (
     <div className="ai-summary">
-      <h3>AI Summary</h3>
+        <h3>AI Forensic Summary</h3>
       <div className="ai-content">
         {blocks.map((block, i) => (
           <div key={i} className={`ai-block ${block.type}`}>

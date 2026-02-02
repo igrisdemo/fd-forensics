@@ -22,6 +22,13 @@ function FDGrowthChart({ data }) {
       </div>
     );
   }
+  if (data.length < 2) {
+    return (
+      <div className="fd-growth-chart empty">
+        <p>Insufficient FD activity.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="fd-growth-chart">

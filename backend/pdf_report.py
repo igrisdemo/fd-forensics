@@ -1,5 +1,5 @@
 """
-PDF report generation for FD Forensics.
+PDF report generation for File Descriptor Forensics and Code Sandbox.
 Produces readable text/tables, no charts.
 """
 
@@ -37,9 +37,11 @@ def _build_process_report(
     styles = getSampleStyleSheet()
     story = []
 
-    story.append(Paragraph("FD Forensics Report", styles["Title"]))
+    story.append(Paragraph("File Descriptor Forensics and Code Sandbox", styles["Title"]))
     story.append(Paragraph(f"Live Process Analysis — PID {pid}", styles["Heading2"]))
     story.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles["Normal"]))
+    if data.get("snapshot_taken_at"):
+        story.append(Paragraph(f"Snapshot taken (UTC): {data['snapshot_taken_at']}", styles["Normal"]))
     story.append(Spacer(1, 0.3 * inch))
 
     # Metrics
@@ -116,13 +118,15 @@ def _build_code_report(
     styles = getSampleStyleSheet()
     story = []
 
-    story.append(Paragraph("FD Forensics Report", styles["Title"]))
+    story.append(Paragraph("File Descriptor Forensics and Code Sandbox", styles["Title"]))
     story.append(Paragraph("Code Analysis", styles["Heading2"]))
     story.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles["Normal"]))
+    exec_meta = raw_analysis.get("execution") or {}
+    if exec_meta.get("sampling_started_at"):
+        story.append(Paragraph(f"Execution snapshot at: {exec_meta['sampling_started_at']}", styles["Normal"]))
     story.append(Spacer(1, 0.3 * inch))
 
     # Execution metadata
-    exec_meta = raw_analysis.get("execution") or {}
     story.append(Paragraph("Execution Metadata", styles["Heading3"]))
     exec_rows = [
         ["Language", _to_str(exec_meta.get("language"))],
@@ -132,6 +136,8 @@ def _build_code_report(
         ["Exit Code", _to_str(exec_meta.get("exit_code"))],
         ["FD Limit", _to_str(exec_meta.get("fd_limit"))],
     ]
+    if exec_meta.get("snapshot_taken_at"):
+        exec_rows.append(["Snapshot taken (UTC)", exec_meta["snapshot_taken_at"]])
     t = Table(exec_rows, colWidths=[1.5 * inch, 2 * inch])
     t.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.lightgrey), ("GRID", (0, 0), (-1, -1), 0.5, colors.black)]))
     story.append(t)
@@ -146,6 +152,20 @@ def _build_code_report(
         story.append(Paragraph(exec_meta["stderr"][:2000].replace("\n", "<br/>"), ParagraphStyle(name="Small", parent=styles["Normal"], fontSize=8)))
 
     story.append(Spacer(1, 0.3 * inch))
+
+    # FD growth summary (text)
+    fd_growth = raw_analysis.get("fd_growth") or []
+    if fd_growth:
+        story.append(Paragraph("FD Growth", styles["Heading3"]))
+        n = len(fd_growth)
+        t0 = fd_growth[0].get("time_sec", 0) if fd_growth else 0
+        t1 = fd_growth[-1].get("time_sec", 0) if fd_growth else 0
+        max_count = max((p.get("fd_count", 0) for p in fd_growth), default=0)
+        story.append(Paragraph(
+            f"Sample count: {n}; time range: {t0}–{t1} s; max FD count: {max_count}",
+            styles["Normal"],
+        ))
+        story.append(Spacer(1, 0.2 * inch))
 
     # FD analysis (if present)
     fd_analysis = raw_analysis.get("fd_analysis")
@@ -187,14 +207,16 @@ def _build_code_report(
                     story.append(PageBreak())
         story.append(Spacer(1, 0.3 * inch))
 
-    # AI summary
+    # AI forensic summary
     if ai_summary:
-        story.append(Paragraph("AI Summary", styles["Heading3"]))
+        story.append(Paragraph("AI Forensic Summary", styles["Heading3"]))
         for line in ai_summary.split("\n"):
             line = line.strip()
             if not line:
                 continue
-            if line.startswith("##"):
+            if line.startswith("###"):
+                story.append(Paragraph(line[3:].strip(), styles["Heading4"]))
+            elif line.startswith("##"):
                 story.append(Paragraph(line[2:].strip(), styles["Heading4"]))
             else:
                 story.append(Paragraph(line.replace("<", "&lt;").replace(">", "&gt;"), styles["Normal"]))

@@ -81,6 +81,11 @@ function ProcessAnalysis({ data, loading, error, pid }) {
           {pdfLoading ? 'Generating…' : 'Download PDF'}
         </button>
       </div>
+      {data.snapshot_taken_at && (
+        <p className="snapshot-time">
+          <strong>Snapshot taken (UTC):</strong> <span className="mono">{data.snapshot_taken_at}</span>
+        </p>
+      )}
       <section className="metrics">
         <h3>Metrics</h3>
         <div className="metric-grid">

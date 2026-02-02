@@ -1,0 +1,7 @@
+{
+  "name": "file-descriptor-forensics-and-code-sandbox",
+  "private": true,
+  "scripts": {
+    "start": "bash run.sh"
+  }
+}

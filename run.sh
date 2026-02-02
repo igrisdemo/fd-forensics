@@ -26,6 +26,11 @@ echo "Using backend port $BACKEND_PORT, frontend port $FRONTEND_PORT"
 echo ""
 
 echo "Starting backend on port $BACKEND_PORT..."
+if [ ! -f .env ] && [ -f .env.example ]; then
+  cp .env.example .env
+  echo "Created .env from .env.example — add your GEMINI_API_KEY to .env and restart for AI summarization."
+fi
+[ -f .env ] && set -a && . ./.env && set +a
 pip install -q -r backend/requirements.txt 2>/dev/null
 uvicorn backend.api:app --host 0.0.0.0 --port "$BACKEND_PORT" &
 BACKEND_PID=$!

@@ -12,7 +12,7 @@ from analysis.report_builder import analyze_fds
 # PAGE CONFIG
 # -----------------------------
 st.set_page_config(
-    page_title="FD Forensics – Linux OS",
+    page_title="File Descriptor Forensics and Code Sandbox",
     layout="wide"
 )
 
@@ -20,7 +20,7 @@ st.set_page_config(
 # CENTERED MAIN HEADING
 # -----------------------------
 st.markdown(
-    "<h1 style='text-align: center;'>File Descriptor Forensics Tool (Linux)</h1>",
+    "<h1 style='text-align: center;'>File Descriptor Forensics and Code Sandbox</h1>",
     unsafe_allow_html=True
 )
 

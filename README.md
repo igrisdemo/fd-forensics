@@ -1,4 +1,4 @@
-# FD Forensics
+# File Descriptor Forensics and Code Sandbox
 
 A Linux file descriptor forensics tool for live process analysis and safe code execution with FD tracking. Combines OS-level `/proc` inspection with AI-powered summarization.
 
@@ -8,7 +8,7 @@ A Linux file descriptor forensics tool for live process analysis and safe code e
 
 **Problem:** File descriptor (FD) leaks are a common cause of production outages. Processes that open files, sockets, or pipes without closing them eventually hit the per-process FD limit, leading to "Too many open files" errors and service failures. Detecting and diagnosing FD leaks is difficult without intrusive instrumentation.
 
-**Solution:** FD Forensics provides:
+**Solution:** File Descriptor Forensics and Code Sandbox provides:
 
 1. **Live process analysis** — Inspect any running process's open FDs, classify them by type (Standard, File, Pipe, Socket, Other), and assess severity.
 2. **Code analysis** — Execute uploaded Python code in a sandbox with FD limits, capture FD growth over time, and produce a forensic report.
@@ -25,7 +25,7 @@ From a systems and security perspective:
 - **Sockets and pipes are worse:** They hold buffers, connection state, and IPC resources. Leaked sockets block ports and memory longer than regular files.
 - **Forensic value:** FD types and counts reveal what a process is doing—file I/O, network, IPC—without attaching debuggers.
 
-FD Forensics ranks FD types by risk: Standard (low) → File → Pipe → Other → Socket (high).
+The tool ranks FD types by risk: Standard (low) → File → Pipe → Other → Socket (high).
 
 ---
 

@@ -16,6 +16,7 @@ function LiveProcesses() {
   const [analysis, setAnalysis] = useState(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState(null);
+  const [snapshotTakenAt, setSnapshotTakenAt] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -25,6 +26,7 @@ function LiveProcesses() {
       .then((data) => {
         if (!cancelled) {
           setProcesses(data);
+          setSnapshotTakenAt(new Date().toISOString());
           if (data.length && !selectedPid) setSelectedPid(data[0].pid);
         }
       })
@@ -62,7 +64,12 @@ function LiveProcesses() {
     <div className="page live-processes">
       <header className="page-header">
         <h1>Live Process Analysis</h1>
-        <p>Select a process to view FD forensics. Snapshot at page load.</p>
+        {snapshotTakenAt && (
+          <p className="snapshot-taken-at">
+            <strong>Snapshot taken at:</strong> <span className="mono">{snapshotTakenAt}</span>
+          </p>
+        )}
+        <p>Select a process to view FD forensics.</p>
       </header>
 
       {error && (

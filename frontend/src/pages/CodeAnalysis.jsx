@@ -121,6 +121,18 @@ function CodeAnalysis() {
                   <span className="meta-label">FD Limit</span>
                   <span className="mono">{exec.fd_limit ?? '—'}</span>
                 </div>
+                {exec.sampling_started_at && (
+                  <div className="meta-item meta-item-full">
+                    <span className="meta-label">Execution snapshot at</span>
+                    <span className="mono">{exec.sampling_started_at}</span>
+                  </div>
+                )}
+                {exec.snapshot_taken_at && (
+                  <div className="meta-item meta-item-full">
+                    <span className="meta-label">Snapshot taken (UTC)</span>
+                    <span className="mono">{exec.snapshot_taken_at}</span>
+                  </div>
+                )}
               </div>
               {exec.termination_reason === 'compile_error' && exec.stderr && (
                 <div className="output output-compile-errors">
@@ -143,7 +155,7 @@ function CodeAnalysis() {
             </section>
           )}
 
-          <section className="card">
+          <section className="card" key={`fd-growth-${exec?.pid ?? 'none'}-${(raw?.fd_growth?.length ?? 0)}-${exec?.duration_seconds ?? 0}`}>
             <h3>FD Growth Over Time</h3>
             <FDGrowthChart data={raw?.fd_growth ?? []} />
           </section>

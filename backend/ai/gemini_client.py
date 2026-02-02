@@ -6,36 +6,54 @@ Produces deterministic, technical summaries for systems/security engineers.
 import json
 import logging
 import os
+from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+# Project root (backend/ai -> backend -> project root)
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
+
+def _ensure_env_loaded() -> None:
+    """Load .env from project root so GEMINI_API_KEY is available regardless of cwd."""
+    try:
+        from dotenv import load_dotenv
+        env_path = _PROJECT_ROOT / ".env"
+        if env_path.exists():
+            load_dotenv(env_path, override=False)
+    except ImportError:
+        pass
+
 
 def _build_prompt(report: dict) -> str:
-    """Build a systems-engineer style prompt for FD analysis summarization."""
+    """Build a strict forensic prompt; response must use exact section headers, max 250 words."""
     language = report.get("execution", {}).get("language", "python")
-    return f"""You are a senior systems/security engineer analyzing a file descriptor forensics report from a Linux code execution sandbox.
-
-Language: {language}
-
-Analyze the following structured report and produce a concise technical summary. Be deterministic and factual. No fluff.
+    return f"""You are a senior systems/security engineer performing file descriptor forensics. Respond using EXACTLY the four section headers below. No filler, no generic advice, no repetition. Maximum 250 words.
 
 REPORT (JSON):
 {json.dumps(report, indent=2)}
 
-Provide your analysis in the following structure (use these exact section headers):
+Use exactly these headers and requirements:
 
-## FD Leaks Detected
-List any indications of FD leaks (monotonically growing fd_count, high final count relative to expected, leaks at exit). If none, state "No clear leak indicators."
+### FD Forensic Summary
+- Language: Python or C (from report)
+- Termination: normal | timeout | compile_error
+- Max FD count observed (from fd_growth or fd_snapshot)
+- FD growth pattern: linear | burst | plateau | leak-like (from fd_growth time-series)
 
-## Root Cause
-Identify the likely cause from the FD types (Standard, File, Pipe, Socket, Other), execution behavior, termination reason, and language. For compile_error, focus on the compilation failures.
+### Risk Assessment
+- Is this behavior expected for this code? Yes/No and why
+- Leak likelihood: Low | Medium | High
+- Dominant FD type and why it matters
 
-## Severity
-State the severity (LOW/MEDIUM/HIGH/CRITICAL) and one-sentence justification.
+### Evidence
+- Specific FD numbers or types involved (from report)
+- Growth timeline references (time_sec, fd_count from fd_growth)
 
-## Fix Recommendations
-Specific, actionable recommendations. If no issues, state "No changes required."
+### Actionable Recommendations
+- Concrete fixes: close(), context managers, socket handling, etc.
+- If no leak: state explicitly why
 """
 
 
@@ -45,9 +63,10 @@ def summarize_fd_report(report: dict) -> Optional[str]:
     Returns None if API key is missing, invalid, or the request fails.
     Output is always a string when successful; None indicates fallback is needed.
     """
+    _ensure_env_loaded()
     api_key = (os.environ.get("GEMINI_API_KEY") or "").strip()
     if not api_key:
-        logger.debug("GEMINI_API_KEY not set, skipping AI summarization")
+        logger.debug("GEMINI_API_KEY NOT SET")
         return None
 
     try:
@@ -56,9 +75,23 @@ def summarize_fd_report(report: dict) -> Optional[str]:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel("gemini-1.5-flash")
         prompt = _build_prompt(report)
-        response = model.generate_content(prompt)
+        response = model.generate_content(
+            prompt,
+            generation_config={
+                "temperature": 0.2,
+                "max_output_tokens": 512,
+                "top_p": 0.95,
+            },
+        )
         text = getattr(response, "text", None)
-        return str(text) if text is not None else None
+        if text is not None:
+            return str(text).strip()
+        if response.candidates and response.candidates[0].content.parts:
+            part = response.candidates[0].content.parts[0]
+            text = getattr(part, "text", None)
+            return str(text).strip() if text else None
+        logger.warning("Gemini returned no text")
+        return None
     except Exception as e:
         logger.warning("Gemini API request failed: %s", e)
         return None

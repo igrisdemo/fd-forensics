@@ -1,5 +1,5 @@
 /**
- * FD Forensics API client.
+ * File Descriptor Forensics and Code Sandbox API client.
  * All backend communication goes through this module.
  * Base URL: relative (uses Vite proxy in dev) or VITE_API_BASE_URL env.
  */

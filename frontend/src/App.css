@@ -53,6 +53,19 @@
   background: var(--accent-dim);
 }
 
+.snapshot-captured-bar {
+  padding: 0.5rem 1.5rem;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.snapshot-captured-bar strong {
+  color: var(--text-primary);
+  margin-right: 0.35rem;
+}
+
 .main {
   flex: 1;
   padding: 1.5rem;
@@ -75,6 +88,13 @@
   margin: 0;
   color: var(--text-muted);
   font-size: 0.9rem;
+}
+
+.page-header .snapshot-taken-at {
+  margin-bottom: 0.35rem;
+}
+.page-header .snapshot-taken-at .mono {
+  color: var(--text-primary);
 }
 
 .banner.error {
@@ -192,6 +212,15 @@
 
 .process-analysis .error-msg {
   color: var(--danger);
+}
+
+.process-analysis .snapshot-time {
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+.process-analysis .snapshot-time .mono {
+  color: var(--text-primary);
 }
 
 .analysis-actions {
@@ -427,6 +456,10 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+.execution-meta .meta-item-full {
+  grid-column: 1 / -1;
 }
 
 .meta-label {

@@ -1,5 +1,5 @@
 """
-FastAPI backend for FD Forensics.
+FastAPI backend for File Descriptor Forensics and Code Sandbox.
 Exposes REST endpoints for process listing, FD analysis, and code execution analysis.
 """
 
@@ -8,9 +8,18 @@ import os
 import shutil
 import sys
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
+
+# Load .env so GEMINI_API_KEY is available (project root and cwd)
+_root = Path(__file__).resolve().parent.parent
+try:
+    from dotenv import load_dotenv
+    load_dotenv(_root / ".env")
+    load_dotenv(Path.cwd() / ".env")  # in case server is started from another cwd
+except ImportError:
+    pass
 
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,7 +27,6 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
 # Ensure project root is on path for proc/ and analysis/ imports
-_root = Path(__file__).resolve().parent.parent
 if str(_root) not in sys.path:
     sys.path.insert(0, str(_root))
 
@@ -41,8 +49,8 @@ logger = logging.getLogger(__name__)
 # APP
 # -----------------------------
 app = FastAPI(
-    title="FD Forensics API",
-    description="Linux file descriptor forensics and code execution analysis",
+    title="File Descriptor Forensics and Code Sandbox API",
+    description="File descriptor forensics and code execution sandbox analysis",
 )
 
 app.add_middleware(
@@ -53,6 +61,15 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def log_gemini_status():
+    key = (os.environ.get("GEMINI_API_KEY") or "").strip()
+    if key:
+        logger.info("Gemini AI enabled")
+    else:
+        logger.info("Gemini AI disabled")
 
 
 # -----------------------------
@@ -83,6 +100,7 @@ class ProcessAnalysisResponse(BaseModel):
     fd_density: float
     fd_danger_rank: dict[str, int]
     fd_danger_reason: dict[str, str]
+    snapshot_taken_at: Optional[str] = None
 
 
 class ExecutionMeta(BaseModel):
@@ -95,6 +113,8 @@ class ExecutionMeta(BaseModel):
     timeout_sec: Optional[int]
     fd_limit: Optional[int]
     language: str = "python"
+    sampling_started_at: Optional[str] = None
+    snapshot_taken_at: Optional[str] = None
 
 
 class FDAnalysisSummary(BaseModel):
@@ -175,6 +195,7 @@ def get_process_analysis(pid: int):
         )
 
     result = analyze_fds(fds, soft_limit)
+    snapshot_taken_at = datetime.now(timezone.utc).isoformat()
 
     return ProcessAnalysisResponse(
         table=[FDEntry(**r) for r in result["table"]],
@@ -188,6 +209,7 @@ def get_process_analysis(pid: int):
         fd_density=result["fd_density"],
         fd_danger_rank=result["fd_danger_rank"],
         fd_danger_reason=result["fd_danger_reason"],
+        snapshot_taken_at=snapshot_taken_at,
     )
 
 
@@ -208,6 +230,7 @@ def get_process_analysis_pdf(pid: int):
         )
 
     result = analyze_fds(fds, soft_limit)
+    snapshot_taken_at = datetime.now(timezone.utc).isoformat()
     data = {
         "table": result["table"],
         "type_counts": dict(result["type_counts"]),
@@ -220,6 +243,7 @@ def get_process_analysis_pdf(pid: int):
         "fd_density": result["fd_density"],
         "fd_danger_rank": result["fd_danger_rank"],
         "fd_danger_reason": result["fd_danger_reason"],
+        "snapshot_taken_at": snapshot_taken_at,
     }
 
     pdf_bytes = generate_process_pdf(pid, data)
@@ -295,12 +319,12 @@ async def analyze_code(file: UploadFile = File(...)):
         ai_summary: str
         try:
             ai_summary = summarize_fd_report(raw_analysis) or (
-                "AI summarization unavailable. Set GEMINI_API_KEY environment variable."
+                "AI summarization unavailable. Add GEMINI_API_KEY to a .env file in the project root and restart the backend."
             )
         except Exception as e:
             logger.warning("Gemini summarization failed: %s", e)
             ai_summary = (
-                "AI summarization unavailable. Set GEMINI_API_KEY environment variable."
+                "AI summarization unavailable. Add GEMINI_API_KEY to a .env file in the project root and restart the backend."
             )
 
         return CodeAnalysisResponse(
@@ -386,12 +410,12 @@ async def analyze_code_pdf(file: UploadFile = File(...)):
         ai_summary: str
         try:
             ai_summary = summarize_fd_report(raw_analysis) or (
-                "AI summarization unavailable. Set GEMINI_API_KEY environment variable."
+                "AI summarization unavailable. Add GEMINI_API_KEY to a .env file in the project root and restart the backend."
             )
         except Exception as e:
             logger.warning("Gemini summarization failed: %s", e)
             ai_summary = (
-                "AI summarization unavailable. Set GEMINI_API_KEY environment variable."
+                "AI summarization unavailable. Add GEMINI_API_KEY to a .env file in the project root and restart the backend."
             )
 
         pdf_bytes = generate_code_pdf(raw_analysis, ai_summary)
@@ -424,7 +448,10 @@ def _build_raw_analysis(exec_report: dict) -> dict:
     """
     Build the structured FD execution report for API response and Gemini.
     Uses fd_snapshot captured during execution (process may have exited).
+    Returns a copy of fd_samples so each response has its own per-run data.
     """
+    fd_samples = exec_report.get("fd_samples", [])
+    fd_growth = [{"time_sec": s["time_sec"], "fd_count": s["fd_count"]} for s in fd_samples]
     out = {
         "execution": {
             "pid": exec_report.get("pid"),
@@ -436,8 +463,10 @@ def _build_raw_analysis(exec_report: dict) -> dict:
             "timeout_sec": exec_report.get("timeout_sec"),
             "fd_limit": exec_report.get("fd_limit"),
             "language": exec_report.get("language", "python"),
+            "sampling_started_at": exec_report.get("sampling_started_at"),
+            "snapshot_taken_at": exec_report.get("snapshot_taken_at"),
         },
-        "fd_growth": exec_report.get("fd_samples", []),
+        "fd_growth": fd_growth,
         "fd_analysis": None,
     }
 
