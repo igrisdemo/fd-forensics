@@ -78,6 +78,60 @@ function LiveProcesses() {
         </div>
       )}
 
+      {!loading && !error && processes.length > 0 && (
+        <section className="fd-overview">
+          <h2>FD Usage Snapshot (System Overview)</h2>
+          <div className="overview-tables">
+            <div className="overview-table-card">
+              <h3>Top 5 FD-Heavy Processes</h3>
+              <div className="overview-table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>PID</th>
+                      <th>Name</th>
+                      <th>FD Count</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {processes.slice(0, 5).map((p) => (
+                      <tr key={p.pid}>
+                        <td className="mono">{p.pid}</td>
+                        <td>{p.name}</td>
+                        <td className="mono">{p.fd_count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="overview-table-card">
+              <h3>Bottom 5 FD-Light Processes</h3>
+              <div className="overview-table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>PID</th>
+                      <th>Name</th>
+                      <th>FD Count</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {processes.slice(-5).map((p) => (
+                      <tr key={p.pid}>
+                        <td className="mono">{p.pid}</td>
+                        <td>{p.name}</td>
+                        <td className="mono">{p.fd_count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       <div className="two-col">
         <aside className="sidebar">
           <h2>Processes (by FD count)</h2>

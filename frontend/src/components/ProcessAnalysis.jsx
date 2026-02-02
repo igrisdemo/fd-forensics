@@ -7,6 +7,7 @@
 
 import React, { useState } from 'react';
 import { fetchProcessAnalysisPdf } from '../api/fdForensicsApi';
+import FDTypePieChart from './FDTypePieChart';
 
 function severityClass(s) {
   const c = (s || '').toUpperCase();
@@ -92,26 +93,31 @@ function ProcessAnalysis({ data, loading, error, pid }) {
           <div className="metric">
             <span className="metric-label">Total FDs</span>
             <span className="metric-value">{total}</span>
+            <span className="metric-def">Open file descriptors (handles to files, sockets, pipes).</span>
           </div>
           <div className="metric">
             <span className="metric-label">Non-Standard</span>
             <span className="metric-value">{data.non_standard}</span>
+            <span className="metric-def">FDs other than stdin (0), stdout (1), stderr (2).</span>
           </div>
           <div className="metric">
             <span className="metric-label">FD Density</span>
             <span className="metric-value mono">
               {typeof data.fd_density === 'number' ? data.fd_density.toFixed(2) : '—'}
             </span>
+            <span className="metric-def">Ratio of non-standard FDs to total; higher = more kernel-managed resources.</span>
           </div>
           {data.usage_pct != null && (
             <div className="metric">
               <span className="metric-label">Usage vs Limit</span>
               <span className="metric-value">{data.usage_pct.toFixed(1)}%</span>
+              <span className="metric-def">How much of the max FDs this process is allowed to have open is currently in use.</span>
             </div>
           )}
           <div className={`metric severity-badge ${severityClass(data.severity)}`}>
             <span className="metric-label">Severity</span>
             <span className="metric-value">{data.severity}</span>
+            <span className="metric-def">Risk level from FD count and limit usage.</span>
           </div>
         </div>
         <p className="severity-note">
@@ -133,6 +139,9 @@ function ProcessAnalysis({ data, loading, error, pid }) {
       {labels.length > 0 && (
         <section className="type-breakdown">
           <h3>FD Type Breakdown</h3>
+          <div className="fd-type-chart-wrap">
+            <FDTypePieChart typeCounts={typeCounts} />
+          </div>
           <div className="type-list">
             {labels.map((t) => (
               <div key={t} className="type-row">

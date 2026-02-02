@@ -1,6 +1,6 @@
 """
 PDF report generation for File Descriptor Forensics and Code Sandbox.
-Produces readable text/tables, no charts.
+Produces readable text/tables and pie chart for FD type breakdown.
 """
 
 from datetime import datetime
@@ -17,8 +17,57 @@ from reportlab.platypus import (
     Table,
     TableStyle,
     PageBreak,
+    Image,
 )
 from reportlab.lib import colors
+
+# FD type colors (match frontend)
+_TYPE_COLORS = {
+    "Standard": "#94a3b8",
+    "File": "#fb923c",
+    "Pipe": "#f97316",
+    "Other": "#ea580c",
+    "Socket": "#dc2626",
+}
+
+
+def _make_pie_chart_image(type_counts: dict) -> Optional[BytesIO]:
+    """Generate a pie chart PNG as BytesIO. Returns None if no data."""
+    if not type_counts or sum(type_counts.values()) == 0:
+        return None
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        labels = list(type_counts.keys())
+        sizes = [type_counts[k] for k in labels]
+        colors_list = [_TYPE_COLORS.get(k, "#64748b") for k in labels]
+        explode = [0.02] * len(labels)
+
+        fig, ax = plt.subplots(figsize=(4, 4))
+        wedges, texts, autotexts = ax.pie(
+            sizes,
+            labels=labels,
+            autopct="%1.1f%%",
+            colors=colors_list,
+            explode=explode,
+            startangle=90,
+            pctdistance=0.75,
+            textprops={"fontsize": 9},
+        )
+        for t in autotexts:
+            t.set_fontsize(8)
+        ax.axis("equal")
+        ax.set_title("FD Type Distribution by Leak Risk", fontsize=10)
+
+        buf = BytesIO()
+        fig.savefig(buf, format="png", dpi=120, bbox_inches="tight", facecolor="white")
+        plt.close(fig)
+        buf.seek(0)
+        return buf
+    except Exception:
+        return None
 
 
 def _to_str(x: Any) -> str:
@@ -75,6 +124,11 @@ def _build_process_report(
     fd_danger_reason = data.get("fd_danger_reason") or {}
     if type_counts:
         story.append(Paragraph("FD Type Breakdown", styles["Heading3"]))
+        pie_buf = _make_pie_chart_image(type_counts)
+        if pie_buf:
+            img = Image(pie_buf, width=3.5 * inch, height=3.5 * inch)
+            story.append(img)
+            story.append(Spacer(1, 0.2 * inch))
         for t, count in type_counts.items():
             reason = fd_danger_reason.get(t, "")
             story.append(Paragraph(f"{t}: {count} — {reason}", styles["Normal"]))
