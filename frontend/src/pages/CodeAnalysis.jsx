@@ -1,14 +1,16 @@
 /**
  * CodeAnalysis – Upload Python file, run analysis, show results.
  * Calls POST /analyze/code, displays execution metadata, FD growth chart,
- * FD table, and AI summary.
+ * FD table, and AI summary. Gemini API key can be entered in the UI.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { analyzeCode, analyzeCodePdf, normalizeError } from '../api/fdForensicsApi';
 import CodeUpload from '../components/CodeUpload';
 import FDGrowthChart from '../components/FDGrowthChart';
 import AISummary from '../components/AISummary';
+
+const GEMINI_KEY_STORAGE = 'fd_forensics_gemini_api_key';
 
 function triggerBlobDownload(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -25,14 +27,63 @@ function CodeAnalysis() {
   const [result, setResult] = useState(null);
   const [lastFile, setLastFile] = useState(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [geminiKey, setGeminiKey] = useState('');
+  const [geminiKeySaved, setGeminiKeySaved] = useState(false);
+  const geminiKeyInputRef = useRef(null);
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(GEMINI_KEY_STORAGE);
+      if (stored) {
+        setGeminiKey(stored);
+        setGeminiKeySaved(true);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  function handleSaveGeminiKey() {
+    const trimmed = (geminiKey || '').trim();
+    if (trimmed) {
+      try {
+        sessionStorage.setItem(GEMINI_KEY_STORAGE, trimmed);
+        setGeminiKeySaved(true);
+      } catch {
+        // ignore
+      }
+    } else {
+      try {
+        sessionStorage.removeItem(GEMINI_KEY_STORAGE);
+        setGeminiKeySaved(false);
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  function getGeminiKeyForRequest() {
+    const fromInput = geminiKeyInputRef.current?.value?.trim();
+    if (fromInput) return fromInput;
+    const fromState = (geminiKey || '').trim();
+    if (fromState) return fromState;
+    try {
+      const stored = sessionStorage.getItem(GEMINI_KEY_STORAGE);
+      if (stored) return stored;
+    } catch {
+      // ignore
+    }
+    return '';
+  }
 
   async function handleUpload(file) {
     setLoading(true);
     setError(null);
     setResult(null);
     setLastFile(file);
+    const keyToUse = getGeminiKeyForRequest();
     try {
-      const data = await analyzeCode(file);
+      const data = await analyzeCode(file, keyToUse);
       setResult(data);
     } catch (err) {
       setError(normalizeError(err));
@@ -44,8 +95,9 @@ function CodeAnalysis() {
   async function handleDownloadPdf() {
     if (!lastFile) return;
     setPdfLoading(true);
+    const keyToUse = getGeminiKeyForRequest();
     try {
-      const blob = await analyzeCodePdf(lastFile);
+      const blob = await analyzeCodePdf(lastFile, keyToUse);
       const ts = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '').replace('T', '-');
       triggerBlobDownload(blob, `fd-forensics-code-${ts}.pdf`);
     } catch {
@@ -65,6 +117,32 @@ function CodeAnalysis() {
         <h1>Code Analysis</h1>
         <p>Upload a Python or C file. It will be compiled (C) or executed in a sandbox with FD tracking.</p>
       </header>
+
+      <section className="card gemini-key-card">
+        <h3>Gemini API Key (for AI Forensic Summary)</h3>
+        <p className="gemini-key-hint">Paste your key below, then upload a file and run analysis. The key is only sent with your request and stored in this browser session.</p>
+        <div className="gemini-key-row">
+          <input
+            ref={geminiKeyInputRef}
+            type="password"
+            className="gemini-key-input"
+            placeholder="Paste your Gemini API key here"
+            value={geminiKey}
+            onChange={(e) => setGeminiKey(e.target.value)}
+            aria-label="Gemini API key"
+          />
+          <button
+            type="button"
+            className="btn-save-key"
+            onClick={handleSaveGeminiKey}
+          >
+            {geminiKeySaved ? 'Saved for this session' : 'Save for this session'}
+          </button>
+        </div>
+        <p className="gemini-key-link">
+          Get a key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a>.
+        </p>
+      </section>
 
       <CodeUpload onUpload={handleUpload} loading={loading} disabled={loading} />
 

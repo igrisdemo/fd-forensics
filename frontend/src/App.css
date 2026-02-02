@@ -445,6 +445,70 @@
   font-size: 1rem;
 }
 
+.gemini-key-card {
+  margin-bottom: 1.25rem;
+}
+
+.gemini-key-hint {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.gemini-key-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.gemini-key-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+}
+
+.gemini-key-input::placeholder {
+  color: var(--text-muted);
+}
+
+.gemini-key-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.btn-save-key {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  background: var(--accent-dim);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.btn-save-key:hover {
+  border-color: var(--accent);
+  background: var(--bg-elevated);
+}
+
+.gemini-key-link {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.gemini-key-link a {
+  color: var(--accent);
+}
+
 .execution-meta .meta-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));

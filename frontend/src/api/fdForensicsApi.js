@@ -44,11 +44,16 @@ export async function fetchProcessAnalysis(pid) {
 /**
  * POST /analyze/code
  * @param {File} file - Python or C source file
+ * @param {string} [geminiApiKey] - Optional Gemini API key from UI
  * @returns {Promise<CodeAnalysisResponse>}
  */
-export async function analyzeCode(file) {
+export async function analyzeCode(file, geminiApiKey) {
   const formData = new FormData();
   formData.append('file', file);
+  const key = typeof geminiApiKey === 'string' ? geminiApiKey.replace(/\r?\n/g, '').trim() : '';
+  if (key) {
+    formData.append('gemini_api_key', key);
+  }
   const { data } = await api.post('/analyze/code', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 90000,
@@ -72,11 +77,16 @@ export async function fetchProcessAnalysisPdf(pid) {
 /**
  * POST /analyze/code/pdf
  * @param {File} file - Python or C source file
+ * @param {string} [geminiApiKey] - Optional Gemini API key from UI
  * @returns {Promise<Blob>} PDF blob
  */
-export async function analyzeCodePdf(file) {
+export async function analyzeCodePdf(file, geminiApiKey) {
   const formData = new FormData();
   formData.append('file', file);
+  const key = typeof geminiApiKey === 'string' ? geminiApiKey.replace(/\r?\n/g, '').trim() : '';
+  if (key) {
+    formData.append('gemini_api_key', key);
+  }
   const { data } = await api.post('/analyze/code/pdf', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     responseType: 'blob',

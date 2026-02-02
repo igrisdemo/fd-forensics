@@ -21,7 +21,7 @@ try:
 except ImportError:
     pass
 
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
@@ -256,10 +256,14 @@ def get_process_analysis_pdf(pid: int):
 
 
 @app.post("/analyze/code", response_model=CodeAnalysisResponse)
-async def analyze_code(file: UploadFile = File(...)):
+async def analyze_code(
+    file: UploadFile = File(...),
+    gemini_api_key: Optional[str] = Form(None),
+):
     """
     Upload a Python or C file, execute it safely with FD tracking, analyze FD behavior,
     and return raw analysis plus AI summary from Gemini.
+    Optional gemini_api_key from UI is used for AI summarization if provided.
     """
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
@@ -316,16 +320,36 @@ async def analyze_code(file: UploadFile = File(...)):
 
         raw_analysis = _build_raw_analysis(exec_report)
 
+        api_key = (gemini_api_key or "").strip().replace("\r", "").replace("\n", "").strip() or None
+        key_was_provided = bool(api_key)
         ai_summary: str
-        try:
-            ai_summary = summarize_fd_report(raw_analysis) or (
-                "AI summarization unavailable. Add GEMINI_API_KEY to a .env file in the project root and restart the backend."
-            )
-        except Exception as e:
-            logger.warning("Gemini summarization failed: %s", e)
+        summary_text, error_code, error_detail = summarize_fd_report(raw_analysis, api_key=api_key)
+        if summary_text:
+            ai_summary = summary_text
+        elif not key_was_provided:
+            ai_summary = "Paste your Gemini API key above, then upload a file and run analysis again to get an AI forensic summary."
+        elif error_code == "invalid_key":
             ai_summary = (
-                "AI summarization unavailable. Add GEMINI_API_KEY to a .env file in the project root and restart the backend."
+                "Invalid API key. Get a valid key at Google AI Studio (aistudio.google.com/apikey), "
+                "paste it above (no extra spaces or newlines), and run analysis again."
             )
+            if error_detail:
+                ai_summary = f"{error_detail}\n\n{ai_summary}"
+        elif error_code == "quota":
+            ai_summary = (
+                "Quota or rate limit exceeded. Wait a few minutes and try again, or check your plan and billing at Google AI Studio. "
+                "Details: https://ai.google.dev/gemini-api/docs/rate-limits"
+            )
+            if error_detail:
+                ai_summary = f"{error_detail}\n\n{ai_summary}"
+        elif error_code == "blocked":
+            ai_summary = error_detail or "Response was blocked by the model. Try again or use different code."
+        elif error_code == "network":
+            ai_summary = error_detail or "Network error. Check your connection and try again."
+        else:
+            ai_summary = "AI summarization failed. Check your API key at Google AI Studio and try again."
+            if error_detail:
+                ai_summary = f"{error_detail}\n\n{ai_summary}"
 
         return CodeAnalysisResponse(
             raw_analysis=RawAnalysis(**raw_analysis),
@@ -350,10 +374,14 @@ async def analyze_code(file: UploadFile = File(...)):
 
 
 @app.post("/analyze/code/pdf")
-async def analyze_code_pdf(file: UploadFile = File(...)):
+async def analyze_code_pdf(
+    file: UploadFile = File(...),
+    gemini_api_key: Optional[str] = Form(None),
+):
     """
     Upload a Python or C file, run analysis, and return PDF report.
     Same execution and analysis as POST /analyze/code, but returns application/pdf.
+    Optional gemini_api_key from UI is used for AI summarization if provided.
     """
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
@@ -407,16 +435,36 @@ async def analyze_code_pdf(file: UploadFile = File(...)):
 
         raw_analysis = _build_raw_analysis(exec_report)
 
+        api_key = (gemini_api_key or "").strip().replace("\r", "").replace("\n", "").strip() or None
+        key_was_provided = bool(api_key)
         ai_summary: str
-        try:
-            ai_summary = summarize_fd_report(raw_analysis) or (
-                "AI summarization unavailable. Add GEMINI_API_KEY to a .env file in the project root and restart the backend."
-            )
-        except Exception as e:
-            logger.warning("Gemini summarization failed: %s", e)
+        summary_text, error_code, error_detail = summarize_fd_report(raw_analysis, api_key=api_key)
+        if summary_text:
+            ai_summary = summary_text
+        elif not key_was_provided:
+            ai_summary = "Paste your Gemini API key above, then upload a file and run analysis again to get an AI forensic summary."
+        elif error_code == "invalid_key":
             ai_summary = (
-                "AI summarization unavailable. Add GEMINI_API_KEY to a .env file in the project root and restart the backend."
+                "Invalid API key. Get a valid key at Google AI Studio (aistudio.google.com/apikey), "
+                "paste it above (no extra spaces or newlines), and run analysis again."
             )
+            if error_detail:
+                ai_summary = f"{error_detail}\n\n{ai_summary}"
+        elif error_code == "quota":
+            ai_summary = (
+                "Quota or rate limit exceeded. Wait a few minutes and try again, or check your plan and billing at Google AI Studio. "
+                "Details: https://ai.google.dev/gemini-api/docs/rate-limits"
+            )
+            if error_detail:
+                ai_summary = f"{error_detail}\n\n{ai_summary}"
+        elif error_code == "blocked":
+            ai_summary = error_detail or "Response was blocked by the model. Try again or use different code."
+        elif error_code == "network":
+            ai_summary = error_detail or "Network error. Check your connection and try again."
+        else:
+            ai_summary = "AI summarization failed. Check your API key at Google AI Studio and try again."
+            if error_detail:
+                ai_summary = f"{error_detail}\n\n{ai_summary}"
 
         pdf_bytes = generate_code_pdf(raw_analysis, ai_summary)
         ts = datetime.now().strftime("%Y%m%d-%H%M%S")
