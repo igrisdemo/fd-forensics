@@ -84,7 +84,11 @@ def _classify_error(exc: Exception) -> Tuple[str, str]:
     if "network" in msg or "connection" in msg or "timeout" in msg or "timed out" in msg:
         return ("network", detail or "Network or timeout error.")
     if "404" in msg or "not found" in msg and ("model" in msg or "generateContent" in msg):
+<<<<<<< HEAD
         return ("invalid_key", detail or "Model not found for this API. Try again; the app will use a supported model.")
+=======
+        return ("model_error", detail or "Model not found. Please check API availability.")
+>>>>>>> 5daa7d3 (Gemini fix)
     return ("unknown", detail)
 
 
@@ -102,7 +106,19 @@ def summarize_fd_report(report: dict, api_key: Optional[str] = None) -> Tuple[Op
         return (None, None, None)
 
     # Model names that support generateContent (try in order if one 404s)
+<<<<<<< HEAD
     model_names = ["gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-1.5-flash", "gemini-pro"]
+=======
+    # Model names to try in order. prefer flash for speed/cost, then pro.
+    # Model names to try in order. prefer flash-lite for quota, then flash.
+    model_names = [
+        "gemini-2.0-flash-lite",
+        "gemini-2.0-flash",
+        "gemini-2.5-flash",
+        "gemini-flash-latest",
+        "gemini-exp-1206",
+    ]
+>>>>>>> 5daa7d3 (Gemini fix)
 
     try:
         import google.generativeai as genai
@@ -136,6 +152,12 @@ def summarize_fd_report(report: dict, api_key: Optional[str] = None) -> Tuple[Op
                 if "404" in err_msg or "not found" in err_msg:
                     logger.debug("Model %s not available, trying next: %s", model_name, e)
                     continue
+<<<<<<< HEAD
+=======
+                if "429" in err_msg or "quota" in err_msg or "resource exhausted" in err_msg:
+                    logger.debug("Model %s quota exceeded, trying next: %s", model_name, e)
+                    continue
+>>>>>>> 5daa7d3 (Gemini fix)
                 raise
 
         if last_error is not None:
